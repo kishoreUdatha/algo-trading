@@ -1,0 +1,9 @@
+com\example\algo\common\model\Instrument.class
+com\example\algo\common\model\Quote.class
+com\example\algo\common\model\enums\OrderSide.class
+com\example\algo\common\model\Signal.class
+com\example\algo\common\model\enums\OrderType.class
+com\example\algo\common\model\Order.class
+com\example\algo\common\events\MarketTickEvent.class
+com\example\algo\common\events\StrategySignalEvent.class
+com\example\algo\common\events\OrderLifecycleEvent.class
