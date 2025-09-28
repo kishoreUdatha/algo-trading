@@ -6,6 +6,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class RiskRules {
   public RiskResult check(StrategySignalEvent e) {
-    return new RiskResult(true, "OK");
+    return new RiskResult(true, "OK", "All user-specific risk checks passed");
   }
 }

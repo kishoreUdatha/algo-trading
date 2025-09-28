@@ -6,13 +6,13 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
+@Builder(toBuilder = true)  // ✅ enable toBuilder
 public class Order {
-  String id;
-  String symbol;
-  OrderSide side;
-  int qty;
-  OrderType type;
-  double price;
-  String status;
+    private String id;
+    private String symbol;
+    private OrderSide side;
+    private int qty;
+    private OrderType type;
+    private double price;
+    private String status;
 }
