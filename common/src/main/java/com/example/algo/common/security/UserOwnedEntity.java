@@ -1,4 +1,8 @@
 package com.example.algo.common.security;
 
-public class UserOwnedEntity {
+public interface UserOwnedEntity {
+    String getUserId();
+    void setUserId(String userId);
+    String getTenantId();
+    void setTenantId(String tenantId);
 }
