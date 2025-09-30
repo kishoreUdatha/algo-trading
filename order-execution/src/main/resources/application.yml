@@ -1,13 +1,239 @@
 server:
-  port: 8093
+  port: 8084
+  servlet:
+    context-path: /order-execution
+
 spring:
+  application:
+    name: order-execution-service
+
+  # Database configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/algo_trading
+    username: ${DB_USERNAME:algo_user}
+    password: ${DB_PASSWORD:algo_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: public
+    open-in-view: false
+
+  # Kafka configuration
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
     consumer:
+      group-id: order-execution-group
+      auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: "com.example.algo.common.events"
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  # Redis for caching (optional)
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+# Eureka service discovery
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging configuration
+logging:
+  level:
+    com.example.algo: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/order-execution.log
+
+# Algorithm trading order execution configuration
+algo:
+  order-execution:
+    # Default order settings
+    defaultBroker: upstox
+    defaultClientId: ${CLIENT_ID:CLIENT001}
+    defaultProduct: CNC
+    defaultValidity: DAY
+
+    # Risk management settings
+    defaultStopLossPercentage: 2.0
+    defaultTakeProfitPercentage: 4.0
+    maxRiskPercentagePerTrade: 1.0
+    maxDailyLoss: 5000.0
+    maxOrderPrice: 50000.0
+    maxDailyTradingValue: 500000.0
+    maxPositionConcentrationPercentage: 10.0
+    maxStrategyDailyValue: 100000.0
+    maxStrategyPositionValue: 50000.0
+
+    # Position sizing settings
+    fixedPositionAmount: 10000.0
+    minLotSize: 1
+    marginMultiplier: 1.0
+
+    # Order retry settings
+    maxRetryAttempts: 3
+    retryDelayMillis: 1000
+    orderTimeoutMillis: 30000
+
+    # Monitoring settings
+    statusUpdateIntervalMillis: 10000
+    orderCleanupIntervalMillis: 300000
+    maxActiveOrdersPerSymbol: 5
+    maxActiveOrdersPerStrategy: 10
+
+    # Symbol blacklist
+    blacklistedSymbols:
+      - BANNED_STOCK1
+      - BANNED_STOCK2
+
+    # Broker settings
+    upstox:
+      enabled: true
+      apiUrl: ${UPSTOX_API_URL:https://api.upstox.com/v2}
+      apiKey: ${UPSTOX_API_KEY:}
+      apiSecret: ${UPSTOX_API_SECRET:}
+      accessToken: ${UPSTOX_ACCESS_TOKEN:}
+      maxOrdersPerSecond: 10
+      commissionPercentage: 0.03
+      taxPercentage: 0.1
+      requestTimeoutMillis: 5000
+
+    zerodha:
+      enabled: false
+      apiUrl: ${ZERODHA_API_URL:https://api.kite.trade}
+      apiKey: ${ZERODHA_API_KEY:}
+      apiSecret: ${ZERODHA_API_SECRET:}
+      accessToken: ${ZERODHA_ACCESS_TOKEN:}
+      maxOrdersPerSecond: 5
+      commissionPercentage: 0.03
+      taxPercentage: 0.1
+      requestTimeoutMillis: 5000
+
+    # Market hours
+    marketHours:
+      marketOpenTime: "09:15"
+      marketCloseTime: "15:30"
+      preMarketOpenTime: "09:00"
+      postMarketCloseTime: "16:00"
+      marketHolidays:
+        - "2024-01-26"  # Republic Day
+        - "2024-03-08"  # Holi
+        - "2024-03-29"  # Good Friday
+        - "2024-05-01"  # Labour Day
+        - "2024-08-15"  # Independence Day
+        - "2024-10-02"  # Gandhi Jayanti
+        - "2024-11-01"  # Diwali
+
+    # Default execution mode
+    defaultExecutionMode: CONSERVATIVE
+
+    # Performance tracking
+    performance:
+      enablePerformanceTracking: true
+      performanceHistoryDays: 30
+      alertThresholdPnLPercentage: -5.0
+      alertThresholdDrawdownPercentage: -10.0
+
+    # Notification settings
+    notifications:
+      enableEmailNotifications: ${ENABLE_EMAIL_NOTIFICATIONS:false}
+      enableSlackNotifications: ${ENABLE_SLACK_NOTIFICATIONS:false}
+      enableWebhookNotifications: ${ENABLE_WEBHOOK_NOTIFICATIONS:false}
+      emailRecipient: ${EMAIL_RECIPIENT:}
+      slackWebhookUrl: ${SLACK_WEBHOOK_URL:}
+      customWebhookUrl: ${CUSTOM_WEBHOOK_URL:}
+      notificationEvents:
+        - ORDER_FILLED
+        - ORDER_REJECTED
+        - DAILY_LOSS_LIMIT
+        - POSITION_LIMIT
+
+# Kafka topics
+kafka:
+  topics:
+    strategy-signals: tp.strategy.signals
+    order-updates: tp.order.updates
+    order-fills: tp.order.fills
+    risk-alerts: tp.risk.alerts
+
+# Circuit breaker configuration (Resilience4j)
+resilience4j:
+  circuitbreaker:
+    instances:
+      broker-api:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2000ms
+
+  retry:
+    instances:
+      broker-api:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+
+  timelimiter:
+    instances:
+      broker-api:
+        timeout-duration: 5s
+
+# Custom application properties
+app:
+  version: @project.version@
+  environment: ${ENVIRONMENT:development}
+  timezone: Asia/Kolkata

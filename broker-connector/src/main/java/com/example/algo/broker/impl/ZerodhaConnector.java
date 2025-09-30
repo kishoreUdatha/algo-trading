@@ -11,6 +11,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.*;
 import java.util.*;
 
+import static com.example.algo.common.model.enums.OrderStatus.CANCELLED;
+import static com.example.algo.common.model.enums.OrderStatus.PENDING;
+
 @Component
 @RequiredArgsConstructor
 public class ZerodhaConnector implements BrokerClient {
@@ -64,7 +67,7 @@ public class ZerodhaConnector implements BrokerClient {
                 o.getPrice()))
         .retrieve()
         .bodyToMono(String.class)
-        .map(s -> o.builder().id(UUID.randomUUID().toString()).status("PENDING").build());
+        .map(s -> o.builder().id(UUID.randomUUID().toString()).status(PENDING).build());
   }
 
   @Override
@@ -74,7 +77,39 @@ public class ZerodhaConnector implements BrokerClient {
         .uri("/orders/regular/{id}", id)
         .retrieve()
         .bodyToMono(String.class)
-        .map(s -> Order.builder().id(id).status("CANCELLED").build());
+        .map(s -> Order.builder().id(id).status(CANCELLED).build());
+  }
+
+  @Override
+  public Mono<Order> getOrderStatus(String orderId) {
+    return client()
+        .get()
+        .uri("/orders/{orderId}", orderId)
+        .retrieve()
+        .bodyToMono(String.class)
+        .map(response -> {
+          // Parse Zerodha order response and convert to our Order model
+          // For now, return a basic order with mock status
+          return Order.builder()
+              .id(orderId)
+              .brokerOrderId(orderId)
+              .status(OrderStatus.PLACED) // This should be parsed from actual response
+              .statusMessage("Order status retrieved from Zerodha")
+              .filledQuantity(0)
+              .remainingQuantity(100)
+              .averagePrice(0.0)
+              .commission(0.0)
+              .taxes(0.0)
+              .totalCost(0.0)
+              .updatedAt(java.time.LocalDateTime.now())
+              .build();
+        })
+        .onErrorReturn(Order.builder()
+            .id(orderId)
+            .brokerOrderId(orderId)
+            .status(OrderStatus.FAILED)
+            .statusMessage("Failed to retrieve order status")
+            .build());
   }
 
   @Override

@@ -9,6 +9,8 @@ public interface BrokerClient {
 
   Mono<Order> cancelOrder(String orderId);
 
+  Mono<Order> getOrderStatus(String orderId);
+
   Flux<Instrument> fetchInstruments();
 
   Mono<List<Instrument>> fetchInstrumentsOnce();

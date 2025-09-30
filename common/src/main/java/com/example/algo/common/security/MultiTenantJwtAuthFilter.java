@@ -23,112 +23,118 @@ import java.util.Set;
 @Slf4j
 public class MultiTenantJwtAuthFilter extends OncePerRequestFilter {
 
-    @Value("${jwt.secret}")
-    private String secret;
+  @Value("${jwt.secret}")
+  private String secret;
 
-    private final UserSessionService userSessionService;
+  private final UserSessionService userSessionService;
 
-    public MultiTenantJwtAuthFilter(UserSessionService userSessionService) {
-        this.userSessionService = userSessionService;
-    }
+  public MultiTenantJwtAuthFilter(UserSessionService userSessionService) {
+    this.userSessionService = userSessionService;
+  }
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
 
-        String token = extractTokenFromRequest(request);
+    String token = extractTokenFromRequest(request);
 
-        if (token != null) {
-            try {
-                UserPrincipal user = validateTokenAndGetUser(token);
+    if (token != null) {
+      try {
+        UserPrincipal user = validateTokenAndGetUser(token);
 
-                // Validate session is still active
-                if (!userSessionService.isSessionActive(user.getSessionId())) {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session expired");
-                    return;
-                }
-
-                // Create authentication
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-                SecurityContextHolder.getContext().setAuthentication(auth);
-
-                // Log user access for audit
-                logUserAccess(user, request);
-
-            } catch (Exception e) {
-                log.error("Authentication failed: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
-                return;
-            }
+        // Validate session is still active
+        if (!userSessionService.isSessionActive(user.getSessionId())) {
+          response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session expired");
+          return;
         }
 
-        filterChain.doFilter(request, response);
+        // Create authentication
+        UsernamePasswordAuthenticationToken auth =
+            new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        // Log user access for audit
+        logUserAccess(user, request);
+
+      } catch (Exception e) {
+        log.error("Authentication failed: {}", e.getMessage());
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+        return;
+      }
     }
 
-    private String extractTokenFromRequest(HttpServletRequest request) {
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
-        }
-        return null;
+    filterChain.doFilter(request, response);
+  }
+
+  private String extractTokenFromRequest(HttpServletRequest request) {
+    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (header != null && header.startsWith("Bearer ")) {
+      return header.substring(7);
+    }
+    return null;
+  }
+
+  private UserPrincipal validateTokenAndGetUser(String token) throws Exception {
+    SignedJWT jwt = SignedJWT.parse(token);
+
+    // Verify signature
+    JWSVerifier verifier = new MACVerifier(secret.getBytes());
+    if (!jwt.verify(verifier)) {
+      throw new SecurityException("Invalid token signature");
     }
 
-    private UserPrincipal validateTokenAndGetUser(String token) throws Exception {
-        SignedJWT jwt = SignedJWT.parse(token);
+    var claims = jwt.getJWTClaimsSet();
 
-        // Verify signature
-        JWSVerifier verifier = new MACVerifier(secret.getBytes());
-        if (!jwt.verify(verifier)) {
-            throw new SecurityException("Invalid token signature");
-        }
-
-        var claims = jwt.getJWTClaimsSet();
-
-        // Check expiration
-        if (claims.getExpirationTime().before(new Date())) {
-            throw new SecurityException("Token expired");
-        }
-
-        // Extract user information
-        String userId = claims.getSubject();
-        String tenantId = claims.getStringClaim("tenant_id");
-        String sessionId = claims.getStringClaim("session_id");
-
-        @SuppressWarnings("unchecked")
-        Set<String> roles = Set.copyOf(claims.getStringListClaim("roles"));
-
-        @SuppressWarnings("unchecked")
-        Set<String> permissions = Set.copyOf(claims.getStringListClaim("permissions"));
-
-        @SuppressWarnings("unchecked")
-        Set<String> authorizedBrokers = Set.copyOf(claims.getStringListClaim("brokers"));
-
-        return new UserPrincipal(
-                userId,
-                claims.getStringClaim("username"),
-                claims.getStringClaim("email"),
-                roles,
-                permissions,
-                true, false, false, false,
-                tenantId,
-                sessionId,
-                authorizedBrokers
-        );
+    // Check expiration
+    if (claims.getExpirationTime().before(new Date())) {
+      throw new SecurityException("Token expired");
     }
 
-    private void logUserAccess(UserPrincipal user, HttpServletRequest request) {
-        log.info("User access: userId={}, tenantId={}, sessionId={}, endpoint={}, ip={}",
-                user.getUserId(), user.getTenantId(), user.getSessionId(),
-                request.getRequestURI(), getClientIP(request));
-    }
+    // Extract user information
+    String userId = claims.getSubject();
+    String tenantId = claims.getStringClaim("tenant_id");
+    String sessionId = claims.getStringClaim("session_id");
 
-    private String getClientIP(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+    @SuppressWarnings("unchecked")
+    Set<String> roles = Set.copyOf(claims.getStringListClaim("roles"));
+
+    @SuppressWarnings("unchecked")
+    Set<String> permissions = Set.copyOf(claims.getStringListClaim("permissions"));
+
+    @SuppressWarnings("unchecked")
+    Set<String> authorizedBrokers = Set.copyOf(claims.getStringListClaim("brokers"));
+
+    return new UserPrincipal(
+        userId,
+        claims.getStringClaim("username"),
+        claims.getStringClaim("email"),
+        roles,
+        permissions,
+        true,
+        false,
+        false,
+        false,
+        tenantId,
+        sessionId,
+        authorizedBrokers);
+  }
+
+  private void logUserAccess(UserPrincipal user, HttpServletRequest request) {
+    log.info(
+        "User access: userId={}, tenantId={}, sessionId={}, endpoint={}, ip={}",
+        user.getUserId(),
+        user.getTenantId(),
+        user.getSessionId(),
+        request.getRequestURI(),
+        getClientIP(request));
+  }
+
+  private String getClientIP(HttpServletRequest request) {
+    String xForwardedFor = request.getHeader("X-Forwarded-For");
+    if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+      return xForwardedFor.split(",")[0].trim();
     }
+    return request.getRemoteAddr();
+  }
 }

@@ -1,15 +1,67 @@
-# Build
+# Maven Build Artifacts
 target/
+*.jar
+*.war
+*.ear
+*.class
 
-# IDE
+# IDE Files
 .idea/
 *.iml
 *.iws
+*.ipr
 out/
+.vscode/
+.settings/
+.project
+.classpath
+.metadata/
 
-# Logs
+# Logs and Runtime
 *.log
+*.log.*
+logs/
+*.pid
+*.seed
+*.out
 
-# OS
+# OS Files
 .DS_Store
 Thumbs.db
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+h2/
+
+# Spring Boot
+*.pid
+spring.log
+*.pid.lock
+
+# Security and Config
+*.key
+*.pem
+*.crt
+application-*.yml
+!application-user-management.yml
+!application-development.yml
+
+# Docker
+*.dockerignore
+
+# Node.js (for any frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.temp
+*.tmp

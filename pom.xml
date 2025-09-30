@@ -51,6 +51,7 @@
         <module>strategy-engine</module>
         <module>order-execution</module>
         <module>monitoring</module>
+        <module>web-gateway</module>
     </modules>
 
     <build>
@@ -89,6 +90,20 @@
                             <phase>verify</phase>
                             <goals>
                                 <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Spring Boot Maven Plugin -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
                             </goals>
                         </execution>
                     </executions>

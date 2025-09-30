@@ -1,13 +1,90 @@
 server:
   port: 8092
+
 spring:
+  application:
+    name: strategy-engine
+
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
+      group-id: strategy-engine
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+        max.poll.records: 100
+        fetch.min.bytes: 1024
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=1h
+
+# Strategy Engine Configuration
+strategy:
+  # Active symbols to trade (comma-separated)
+  active-symbols: NIFTY,BANKNIFTY,RELIANCE,TCS,HDFC,INFY,ITC,SBIN,ICICIBANK,BAJFINANCE
+
+  # Default broker for historical data
+  default-broker: upstox
+
+  # Historical data configuration
+  historical-data:
+    days-to-load: 365
+    timeout-seconds: 30
+    cache-enabled: true
+    cache-ttl-hours: 24
+
+  # Strategy initialization settings
+  initialization:
+    auto-start: true
+    parallel-threads: 5
+    timeout-minutes: 10
+    retry-attempts: 3
+
+# WebClient Configuration
+webclient:
+  market-data:
+    base-url: http://localhost:8082
+    timeout-seconds: 30
+    max-connections: 50
+    connection-timeout-seconds: 10
+
+# Logging Configuration
+logging:
+  level:
+    com.example.algo.strategy: INFO
+    com.example.algo.common.indicators: DEBUG
+    org.springframework.kafka: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Performance Tuning
+spring.task:
+  execution:
+    pool:
+      core-size: 10
+      max-size: 50
+      queue-capacity: 100
