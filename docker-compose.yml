@@ -84,6 +84,7 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=algo-trading-jwt-secret-key-for-hs512-minimum-512-bits-required-for-production-use
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,6 +118,7 @@ services:
       - SPRING_REDIS_PORT=6379
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - BROKER_CONNECTOR_URL=http://broker-connector:8081
+      - JWT_SECRET=algo-trading-jwt-secret-key-for-hs512-minimum-512-bits-required-for-production-use
     depends_on:
       postgres:
         condition: service_healthy
